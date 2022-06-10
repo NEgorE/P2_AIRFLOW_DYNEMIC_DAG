@@ -6,6 +6,10 @@ from P2_AIRFLOW_DYNEMIC_DAG.defs import defs
 import datetime as dt
 import xml.etree.ElementTree as ET
 
+path = '/home/airflow/airflow/dags/P2_AIRFLOW_DYNEMIC_DAG/'
+log_file = f'{path}logfile.log'
+xml_file = f'{path}config.xml'
+xml_root = ET.parse(xml_file).getroot()
 
 args = {
     'owner': 'airflow',
@@ -13,12 +17,8 @@ args = {
     'retries': 0,
     'retry_delay': dt.timedelta(minutes = 1),
     'depends_on_past': False,
+    'log_file' : f'{path}logfile.log'
 }
-
-path = '/home/airflow/airflow/dags/P2_AIRFLOW_DYNEMIC_DAG/'
-log_file = f'{path}logfile.log'
-xml_file = f'{path}config.xml'
-xml_root = ET.parse(xml_file).getroot()
 
 cur_db = None
 cur_schema = None
@@ -36,51 +36,37 @@ with DAG(dag_id = 'DAG_dynemic_tree', default_args = args, schedule_interval = N
 
 
     for sourse in xml_root :
-        cur_sourse = sourse.attrib['name'].lower()
         task_npp += 1
-        xml_obj_mem[cur_sourse] = (task_npp , cur_sourse, sourse.tag, log_file, dag)
-        tasks[f'T{xml_obj_mem[cur_sourse][0]}_{xml_obj_mem[cur_sourse][1]}'] = defs.cr_py_operator2(xml_obj_mem[cur_sourse])
+        cur_sourse = f"T{str(task_npp)}_{sourse.attrib['name'].lower()}"
+        xml_obj_mem[cur_sourse] = (task_npp, cur_sourse, sourse.tag, dag)
+        tasks[cur_sourse] = defs.cr_py_operator2(xml_obj_mem[cur_sourse])
 
         for db in sourse :
-            cur_db = db.attrib["name"].lower()
-
             task_npp += 1
-            task_name = f'T{task_npp}_{cur_db}'
-            task_mess = f'T{task_npp}: {cur_db}'
-            tasks[task_name] = defs.cr_py_operator(task_npp, task_name, dag, log_file)
-
-            xml_obj_mem[cur_db] = (task_npp , task_name, task_mess)
-
-            trees.append(f'T{xml_obj_mem[cur_sourse][0]}_{xml_obj_mem[cur_sourse][1]}>{task_name}')
+            cur_db = f"T{str(task_npp)}_{db.attrib['name'].lower()}"
+            xml_obj_mem[cur_db] = (task_npp, cur_db, db.tag, dag)
+            tasks[cur_db] = defs.cr_py_operator2(xml_obj_mem[cur_db])
+            trees.append(f'{cur_sourse}>{cur_db}')
 
             for schema in db :
-                cur_schema = schema.attrib['name'].lower()
                 task_npp += 1
-                task_name = f'T{task_npp}_{cur_schema}'
-                task_mess = f'T{task_npp}: {cur_schema}'
-                tasks[task_name] = defs.cr_py_operator(task_npp, task_name, dag, log_file)
-
-                xml_obj_mem[cur_schema] = (task_npp , task_name, task_mess)
-
-                trees.append(f'{xml_obj_mem[cur_db][1]}>{task_name}')
+                cur_schema = f"T{str(task_npp)}_{schema.attrib['name'].lower()}"
+                xml_obj_mem[cur_schema] = (task_npp, cur_schema, schema.tag, dag)
+                tasks[cur_schema] = defs.cr_py_operator2(xml_obj_mem[cur_schema])
+                trees.append(f'{cur_db}>{cur_schema}')
 
                 for table in schema :
-                    cur_table = table.attrib['name'].lower()
                     task_npp += 1
-                    task_name = f'T{task_npp}_{cur_table}'
-                    task_mess = f'T{task_npp}: {cur_table}'
-                    tasks[task_name] = defs.cr_py_operator(task_npp, task_name, dag, log_file)
-
-                    xml_obj_mem[cur_table] = (task_npp , task_name, task_mess)
-
-                    trees.append(f'{xml_obj_mem[cur_schema][1]}>{task_name}')
+                    cur_table = f"T{str(task_npp)}_{table.attrib['name'].lower()}"
+                    xml_obj_mem[cur_table] = (task_npp, cur_table, table.tag, dag)
+                    tasks[cur_table] = defs.cr_py_operator2(xml_obj_mem[cur_table])
+                    trees.append(f'{cur_schema}>{cur_table}')
 
                     task_npp += 1
-                    task_name = f'T{task_npp}_{cur_table}'
-                    task_mess = f'T{task_npp}: {cur_table}'
-                    tasks[task_name] = defs.cr_py_operator(task_npp, task_name, dag, log_file)
-
-                    trees.append(f'{xml_obj_mem[cur_table][1]}>{task_name}')
+                    cur_table2 = f"T{str(task_npp)}_{table.attrib['name'].lower()}"
+                    xml_obj_mem[cur_table2] = (task_npp, cur_table2, table.tag, dag)
+                    tasks[cur_table2] = defs.cr_py_operator2(xml_obj_mem[cur_table2])
+                    trees.append(f'{cur_table}>{cur_table2}')
 
 
     
